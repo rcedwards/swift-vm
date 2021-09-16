@@ -55,8 +55,6 @@ enum Instruction: CustomDebugStringConvertible {
     init(memory: [UInt8], programCounter: UInt16) throws {
         let pcIndex = Int(programCounter) // Cast to an Int for indexing into memory: [UInt8]
         guard Constants.instructionRange.contains(pcIndex) else {
-            print(pcIndex)
-            print(programCounter)
             throw Error.instructionOutOfBounds
         }
         guard let opCode = OpCode(rawValue: memory[pcIndex]) else {
@@ -171,14 +169,21 @@ do {
 
 class VM {
     var programMemory: [UInt8]
-    var registers: [Register: UInt16]
+    var output: UInt16 {
+        let lowBits = UInt16(programMemory[Constants.outputRange.lowerBound])
+        let highBits = UInt16(programMemory[Constants.outputRange.upperBound]) * 256
+        return lowBits + highBits
+    }
+    
+    private var registers: [Register: UInt16]
     private var hasHaulted = false {
         didSet {
-            print("=============Program Execution Ended============")
+            print("Program-Output: \(output)")
+            print("=============Program-Execution-Ended============")
         }
     }
     
-    var programCounter: UInt16 {
+    private var programCounter: UInt16 {
         get { registers[.programCounter]! }
         set { registers[.programCounter] = newValue }
     }
@@ -193,7 +198,7 @@ class VM {
     }
     
     func run() {
-        print("=============Starting Program Execution=========")
+        print("=============Starting-Program-Execution=========")
         while !hasHaulted {
             do {
                 let instruction = try decode()
@@ -204,17 +209,35 @@ class VM {
             }
         }
     }
+
     
     private func decode() throws -> Instruction {
         try Instruction(memory: programMemory, programCounter: programCounter)
     }
     
     private func execute(_ instruction: Instruction) {
+        print(instruction.debugDescription)
         switch instruction {
         case .hault:
             hasHaulted = true
-        default:
-            print("Not Implemented")
+        case .add(registerA: let rga, registerB: let rgb):
+            registers[rga]! = registers[rga]! + registers[rgb]!
+        case .sub(registerA: let rga, registerB: let rgb):
+            registers[rga]! = registers[rga]! - registers[rgb]!
+        case .loadWord(register: let register, address: let address):
+            // Also programMemory indicies are cast to expected array index type of Int.
+            let addressIndex = Int(address)
+            let lowBits = UInt16(programMemory[addressIndex])
+            let highBits = UInt16(programMemory[addressIndex + 1]) * 256
+            registers[register]! = lowBits + highBits
+        case .storeWord(register: let register, address: let address):
+            let registerValue = registers[register]!
+            let lowBits = UInt8(registerValue % 256)
+            let highBits = UInt8(registerValue / 256)
+            let lowIndex = Int(address)
+            let highIndex = lowIndex + 1
+            programMemory[lowIndex] = lowBits
+            programMemory[highIndex] = highBits
         }
     }
 }
