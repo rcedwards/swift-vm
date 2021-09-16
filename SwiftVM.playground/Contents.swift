@@ -1,10 +1,14 @@
 import Foundation
 
+// MARK: - Constants
+
 enum Constants {
     static let instructionRange = 0x00...0x0d
     static let outputRange = 0x0e...0x0f
     static let inputRange = 0x10...0x13
 }
+
+// MARK: - Instructions
 
 enum Instruction: CustomDebugStringConvertible {
     case loadWord(register: Register, address: UInt8)
@@ -12,6 +16,16 @@ enum Instruction: CustomDebugStringConvertible {
     case add(registerA: Register, registerB: Register)
     case sub(registerA: Register, registerB: Register)
     case hault
+    
+    // UInt16 used to match program counter
+    var counterIncrementCount: UInt16 {
+        switch self {
+        case .hault:
+            return 1
+        case .add, .loadWord, .storeWord, .sub:
+            return 3
+        }
+    }
     
     enum OpCode: UInt8 {
         case load = 0x01
@@ -108,6 +122,8 @@ enum Instruction: CustomDebugStringConvertible {
     }
 }
 
+// MARK: - Registers
+
 enum Register: UInt8, CaseIterable, CustomDebugStringConvertible {
     case programCounter = 0x00
     case generalPurpose1 = 0x01
@@ -125,7 +141,6 @@ enum Register: UInt8, CaseIterable, CustomDebugStringConvertible {
     }
 }
 
-
 // MARK: - Sample Input Parsing
 
 var sampleInput: [UInt8] = [
@@ -141,25 +156,31 @@ var sampleInput: [UInt8] = [
 ]
 
 do {
+    print("=============TESTING-DECODING===================")
     print(try Instruction(memory: sampleInput, programCounter: 0x00))
     print(try Instruction(memory: sampleInput, programCounter: 0x03))
     print(try Instruction(memory: sampleInput, programCounter: 0x06))
     print(try Instruction(memory: sampleInput, programCounter: 0x09))
     print(try Instruction(memory: sampleInput, programCounter: 0x0c))
+    print("=============TESTING-DECODING===================\n")
 } catch {
     print(error)
 }
-
-
 
 // MARK: - VM
 
 class VM {
     var programMemory: [UInt8]
     var registers: [Register: UInt16]
+    private var hasHaulted = false {
+        didSet {
+            print("=============Program Execution Ended============")
+        }
+    }
     
     var programCounter: UInt16 {
-        registers[.programCounter]!
+        get { registers[.programCounter]! }
+        set { registers[.programCounter] = newValue }
     }
     
     init(memory: [UInt8]) {
@@ -172,23 +193,29 @@ class VM {
     }
     
     func run() {
-//        while programCounter != OpCode.hault.rawValue {
-//            fetch()
-//            decode()
-//            execute()
-//        }
+        print("=============Starting Program Execution=========")
+        while !hasHaulted {
+            do {
+                let instruction = try decode()
+                execute(instruction)
+                programCounter += instruction.counterIncrementCount
+            } catch {
+                assertionFailure(error.localizedDescription)
+            }
+        }
     }
     
-    private func fetch() {
-        
+    private func decode() throws -> Instruction {
+        try Instruction(memory: programMemory, programCounter: programCounter)
     }
     
-    private func decode() {
-        
-    }
-    
-    private func execute() {
-        
+    private func execute(_ instruction: Instruction) {
+        switch instruction {
+        case .hault:
+            hasHaulted = true
+        default:
+            print("Not Implemented")
+        }
     }
 }
 
