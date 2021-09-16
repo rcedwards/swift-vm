@@ -171,7 +171,7 @@ class VM {
     var programMemory: [UInt8]
     var output: UInt16 {
         let lowBits = UInt16(programMemory[Constants.outputRange.lowerBound])
-        let highBits = UInt16(programMemory[Constants.outputRange.upperBound]) * 256
+        let highBits = UInt16(programMemory[Constants.outputRange.upperBound]) << 8
         return lowBits + highBits
     }
     
@@ -228,12 +228,16 @@ class VM {
             // Also programMemory indicies are cast to expected array index type of Int.
             let addressIndex = Int(address)
             let lowBits = UInt16(programMemory[addressIndex])
-            let highBits = UInt16(programMemory[addressIndex + 1]) * 256
+            // Shift the bits by 8 to "move" this byte to the high order.
+            let highBits = UInt16(programMemory[addressIndex + 1]) << 8
             registers[register]! = lowBits + highBits
         case .storeWord(register: let register, address: let address):
             let registerValue = registers[register]!
-            let lowBits = UInt8(registerValue % 256)
-            let highBits = UInt8(registerValue / 256)
+            // A few ways of getting the low bits here.
+            // Mod: "% 256" or "& 255" or in this case using UInt8.max which is also 255
+            let lowBits = UInt8(registerValue & UInt16(UInt8.max))
+            // Shift the high bits down in to the UInt8 package
+            let highBits = UInt8(registerValue >> 8)
             let lowIndex = Int(address)
             let highIndex = lowIndex + 1
             programMemory[lowIndex] = lowBits
