@@ -1,6 +1,6 @@
 import Foundation
 
-var memory: [UInt8] = [
+var sampleInput: [UInt8] = [
     0x01, 0x01, 0x10,
     0x01, 0x02, 0x12,
     0x03, 0x01, 0x02,
@@ -12,21 +12,42 @@ var memory: [UInt8] = [
     0x0c, 0x00
 ]
 
-let vm = VM(data: memory)
+let instructionRange = 0x00...0x0d
+let outputRange = 0x0e...0x0f
+let inputRange = 0x10...0x13
+
+let vm = VM(memory: sampleInput)
 vm.run()
 
 enum OpCode: UInt8 {
+    case loadWord = 0x01
+    case storeWord = 0x02
+    case add = 0x03
+    case sub = 0x04
     case hault = 0xff
 }
 
+enum Register: UInt8, CaseIterable {
+    case programCounter = 0x00
+    case generalPurpose1 = 0x01
+    case generalPurpose2 = 0x02
+}
+
 class VM {
-    var data: [UInt8]
-    var programCounter: UInt8 {
-        data.last!
+    var programMemory: [UInt8]
+    var registers: [Register: UInt16]
+    
+    var programCounter: UInt16 {
+        registers[.programCounter]!
     }
     
-    init(data: [UInt8]) {
-        self.data = data
+    init(memory: [UInt8]) {
+        self.programMemory = memory
+        self.registers = [
+            .programCounter: 0x0000,
+            .generalPurpose1: 0x0000,
+            .generalPurpose2: 0x0000
+        ]
     }
     
     func run() {
